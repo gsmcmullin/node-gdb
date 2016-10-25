@@ -5,6 +5,8 @@ Exec = require './exec'
 Breaks = require './breaks'
 VarObj = require './varobj'
 
+# Public: A class to control an instance of GDB running as a child process.
+# The child is not spawned on construction, but only when calling {connect}
 class GDB
     constructor: ->
         @next_token = 0
@@ -28,6 +30,9 @@ class GDB
     onAsyncStatus: (cb) ->
         @emitter.on 'async-status', cb
 
+    # Public: Spawn the GDB child process, and set up with our config.
+    #
+    # Retuns a `Promise` that resolves when GDB is running.
     connect: ->
         if @child?
             @exec._disconnected()
@@ -55,8 +60,8 @@ class GDB
                 delete @child
                 throw err
 
+    # Politely request the GDB child process to exit
     disconnect: ->
-        # Politely request the GDB child process to exit
         # First interrupt the target if it's running
         if not @child? then return
         if @exec.state == 'RUNNING'
@@ -97,6 +102,10 @@ class GDB
         @_flush_queue()
         delete @child
 
+    # Send a gdb/mi command.  This is used internally by sub-modules.
+    #
+    # Returns a `Promise` that resolves to the results part of the result record
+    # reply or rejected in the case of an error reply.
     send_mi: (cmd, quiet) ->
         # Send an MI command to GDB
         if not @child?
@@ -121,6 +130,11 @@ class GDB
             c.reject new Error('Flushed due to previous errors')
         @cmdq = []
 
+    # Public: Send a gdb/cli command.  This may be used to implement a CLI
+    # window in a GUI frontend tool, or to send monitor or other commands for
+    # which no equivalent MI commands exist.
+    #
+    # Returns a `Promise` that resolves on success.
     send_cli: (cmd) ->
         @send_mi "-interpreter-exec console #{cstr(cmd)}"
 

@@ -1,16 +1,30 @@
 {Emitter, Disposable, CompositeDisposable} = require 'event-kit'
 _ = require 'underscore'
 
+# A class representing a single breakpoint.  This should not be created directly
+# but by calling {BreakpointManager::create}.
 class Breakpoint
     constructor: (@gdb, bkpt) ->
         @emitter = new Emitter
         _.extend this, bkpt
 
+    # Public: Invoke the given callback function when this breakpoint
+    # is modified.
+    #
+    # Returns a `Disposable` on which `.dispose()` can be called to unsubscribe.
     onChanged: (cb) ->
         @emitter.on 'changed', cb
+
+    # Public: Invoke the given callback function when this breakpoint
+    # is deleted.
+    #
+    # Returns a `Disposable` on which `.dispose()` can be called to unsubscribe.
     onDeleted: (cb) ->
         @emitter.on 'deleted', cb
 
+    # Public: Remove this breakpoint from the target.
+    #
+    # Returns a `Promise` that resolves on success.
     remove: ->
         @gdb.send_mi "-break-delete #{@number}"
             .then => @_deleted()
@@ -22,6 +36,7 @@ class Breakpoint
     _deleted: ->
         @emitter.emit 'deleted'
 
+# Class to manage the creation of new {Breakpoint}s.
 module.exports =
 class BreakpointManager
     constructor: (@gdb) ->
@@ -31,6 +46,8 @@ class BreakpointManager
         @subscriptions.add @gdb.onAsyncNotify(@_onAsyncNotify.bind(this))
         @subscriptions.add @gdb.exec.onStateChanged @_onStateChanged.bind(this)
 
+    # Public: Invoke the given callback function with all current and future
+    # breakpoints in the target.
     observe: (cb) ->
         for id, bkpt of @breaks
             cb id, bkpt
@@ -38,6 +55,9 @@ class BreakpointManager
         return new Disposable () ->
             @observers.splice(@observers.indexOf(cb), 1)
 
+    # Public: Insert a new breakpoint at the given position.
+    #
+    # Returns a `Promise` that resolves to the new {Breakpoint}
     insert: (pos) ->
         @gdb.send_mi "-break-insert #{pos}"
             .then ({bkpt}) =>
