@@ -1,0 +1,37 @@
+{
+  "name": "node-gdb",
+  "version": "0.0.1",
+  "description": "Control GDB from node.js",
+  "main": "lib/index.js",
+  "scripts": {
+    "jison": "jison ./src/gdbmi.jison -o ./lib/gdbmi.js",
+    "coffee": "coffee --compile --output lib src",
+    "prepublish": "npm run coffee && npm run jison"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gsmcmullin/node-gdb.git"
+  },
+  "keywords": [
+    "gdb",
+    "debug",
+    "debugger"
+  ],
+  "author": {
+    "name": "Gareth McMullin",
+    "email": "gareth@blacksphere.co.nz"
+  },
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/gsmcmullin/node-gdb/issues"
+  },
+  "homepage": "https://github.com/gsmcmullin/node-gdb#readme",
+  "dependencies": {
+    "event-kit": "^2.2.0",
+    "underscore": "^1.8.3"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.11.1",
+    "jison": "~0.4.17"
+  }
+}
