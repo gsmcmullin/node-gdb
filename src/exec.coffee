@@ -1,6 +1,8 @@
 {Emitter, CompositeDisposable} = require 'event-kit'
 
-class Exec
+module.exports =
+# Class for managing target execution state.
+class ExecState
     constructor: (@gdb) ->
         @state = 'DISCONNECTED'
         @threadGroups = {}
@@ -16,16 +18,23 @@ class Exec
         @gdb.send_mi '-break-insert -t main'
         @gdb.send_mi '-exec-run'
 
+    # Public: Resume execution.
     continue: ->
         if @state == 'EXITED'
             @gdb.send_mi '-exec-run'
         else
             @gdb.send_mi '-exec-continue'
 
+    # Public: Single step, stepping over function calls.
     next: -> @gdb.send_mi '-exec-next'
+
+    # Public: Single step, stepping into function calls.
     step: -> @gdb.send_mi '-exec-step'
+
+    # Public: Resume execution until frame returns.
     finish: -> @gdb.send_mi '-exec-finish'
 
+    # Public: Attempt to interrupt the running target.
     interrupt: ->
         # Interrupt the target if running
         if @state != 'RUNNING'
@@ -90,5 +99,3 @@ class Exec
         @_setState 'EXITED'
     _disconnected: ->
         @_setState 'DISCONNECTED'
-
-module.exports = Exec

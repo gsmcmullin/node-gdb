@@ -6,8 +6,15 @@ Breaks = require './breaks'
 VarObj = require './varobj'
 
 # Public: A class to control an instance of GDB running as a child process.
-# The child is not spawned on construction, but only when calling {connect}
+# The child is not spawned on construction, but only when calling `.connect`
 class GDB
+    # Public: A {BreakpointManager} instance.
+    breaks: null
+    # Public: An {ExecState} instance.
+    exec: null
+    # A {VariableManager} instance.  API not finalised.
+    varobj: null
+
     constructor: ->
         @next_token = 0
         @cmdq = []
