@@ -35,6 +35,7 @@ class Breakpoint
 
     _deleted: ->
         @emitter.emit 'deleted'
+        @emitter.dispose()
 
 # Class to manage the creation of new {Breakpoint}s.
 module.exports =
@@ -53,7 +54,7 @@ class BreakpointManager
             cb id, bkpt
         @observers.push cb
         return new Disposable () ->
-            @observers.splice(@observers.indexOf(cb), 1)
+            @observers?.splice(@observers.indexOf(cb), 1)
 
     # Public: Insert a new breakpoint at the given position.
     #
@@ -78,6 +79,13 @@ class BreakpointManager
                 removed = true
         if not removed
             @insert "#{file}:#{line}"
+
+    destroy: ->
+        @subscriptions.dispose()
+        for n, bkpt of @breaks
+            bkpt._deleted()
+            delete @breaks[n]
+        delete @observers
 
     _add: (bkpt) ->
         bkpt = @breaks[bkpt.number] = new Breakpoint(@gdb, bkpt)

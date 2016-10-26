@@ -6,7 +6,8 @@
   "scripts": {
     "jison": "jison ./src/gdbmi.jison -o ./lib/gdbmi.js",
     "coffee": "coffee --compile --output lib src",
-    "prepublish": "npm run coffee && npm run jison"
+    "prepublish": "npm run coffee && npm run jison",
+    "test": "npm run prepublish && jasmine-node --coffee spec"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "coffee-script": "^1.11.1",
+    "jasmine-node": "^1.14.5",
     "jison": "~0.4.17"
   }
 }

@@ -11,6 +11,10 @@ class ExecState
         @subscriptions.add @gdb.onAsyncExec(@_onExec.bind(this))
         @subscriptions.add @gdb.onAsyncNotify(@_onNotify.bind(this))
 
+    destroy: ->
+        @subscriptions.dispose()
+        @emitter.dispose()
+
     onStateChanged: (cb) ->
         @emitter.on 'state-changed', cb
 

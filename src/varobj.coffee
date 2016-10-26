@@ -12,6 +12,14 @@ class VarObj
         @subscriptions.add @gdb.exec.onStateChanged @_execStateChanged.bind(this)
         @subscriptions.add @gdb.breaks.observe @_breakObserver.bind(this)
 
+    destroy: ->
+        @subscriptions.dispose()
+        @emitter.dispose()
+        delete @observers
+        delete @watchpoints
+        delete @roots
+        delete @vars
+
     observe: (cb) ->
         # Recursively notify observer of existing items
         r = (n) =>

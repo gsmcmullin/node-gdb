@@ -13,59 +13,58 @@ class GDB
     # Public: An {ExecState} instance.
     exec: null
     # A {VariableManager} instance.  API not finalised.
-    varobj: null
+    vars: null
+    command: 'gdb'
 
-    constructor: ->
+    constructor: (command) ->
+        @command ?= command
         @next_token = 0
         @cmdq = []
-        @config = {cmdline: 'gdb', cwd: '', file: '', init: ''}
         @parser = new Parser
         @emitter = new Emitter
         @exec = new Exec(this)
         @breaks = new Breaks(this)
-        @varobj = new VarObj(this)
+        @vars = new VarObj(this)
 
     onConsoleOutput: (cb) ->
         @emitter.on 'console-output', cb
     onGdbmiRaw: (cb) ->
         @emitter.on 'gdbmi-raw', cb
 
+    # Private: Invoke callback on received async exec records.
     onAsyncExec: (cb) ->
         @emitter.on 'async-exec', cb
+
+    # Private: Invoke callback on received async notify records.
     onAsyncNotify: (cb) ->
         @emitter.on 'async-notify', cb
+
+    # Private: Invoke callback on received async status records.
     onAsyncStatus: (cb) ->
         @emitter.on 'async-status', cb
+
+    # Public: Invoke the given function when GDB starts.
+    onConnect: (cb) ->
+        @emitter.on 'connected', cb
+
+    # Public: Invoke the given function when GDB exits.
+    onDisconnect: (cb) ->
+        @emitter.on 'disconnected', cb
 
     # Public: Spawn the GDB child process, and set up with our config.
     #
     # Retuns a `Promise` that resolves when GDB is running.
-    connect: ->
-        if @child?
-            @exec._disconnected()
-            @child.kill()
-        {cmdline, cwd, file, init} = @config
+    connect: (command) ->
+        @command ?= command
+        @child?.kill()
         # Spawn the GDB child process and connect up event handlers
         bufferedProcess
-                command: cmdline
+                command: @command
                 args: ['-n', '--interpreter=mi']
                 stdout: @_line_output_handler.bind(this)
                 exit: @_child_exited.bind(this)
             .then (@child) =>
-                @send_mi "-gdb-set confirm off"
-            .then =>
-                if cwd?
-                    @send_mi "-environment-cd #{cstr(cwd)}"
-            .then =>
-                @send_mi "-file-exec-and-symbols #{cstr(file)}"
-            .then =>
-                @exec._connected()
-                Promise.all(@send_cli cmd for cmd in init.split '\n')
-            .catch (err) =>
-                @exec._disconnected()
-                @child.kill()
-                delete @child
-                throw err
+                @emitter.emit 'connected'
 
     # Politely request the GDB child process to exit
     disconnect: ->
@@ -96,7 +95,7 @@ class GDB
     _result_record_handler: (cls, results) ->
         c = @cmdq.shift()
         if cls == 'error'
-            c.reject results.msg
+            c.reject new Error results.msg
             @_flush_queue()
             return
         c.resolve results
@@ -104,8 +103,7 @@ class GDB
 
     _child_exited: () ->
         # Clean up state if/when GDB child process exits
-        console.log 'Child exited'
-        @exec._disconnected()
+        @emitter.emit 'disconnected'
         @_flush_queue()
         delete @child
 
@@ -144,5 +142,13 @@ class GDB
     # Returns a `Promise` that resolves on success.
     send_cli: (cmd) ->
         @send_mi "-interpreter-exec console #{cstr(cmd)}"
+
+    # Public: Tear down the object and free associated resources.
+    destroy: ->
+        @child?.kill()
+        @breaks.destroy()
+        @exec.destroy()
+        @vars.destroy()
+        @emitter.dispose()
 
 module.exports = GDB
