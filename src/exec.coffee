@@ -10,6 +10,10 @@ class ExecState
         @subscriptions = new CompositeDisposable
         @subscriptions.add @gdb.onAsyncExec(@_onExec.bind(this))
         @subscriptions.add @gdb.onAsyncNotify(@_onNotify.bind(this))
+        @subscriptions.add [
+            @gdb.onConnect => @_setState 'EXITED'
+            @gdb.onDisconnect => @_setState 'DISCONNECTED'
+        ]
 
     destroy: ->
         @subscriptions.dispose()
@@ -98,8 +102,3 @@ class ExecState
                 delete @threadGroups[results.id]
                 if Object.keys(@threadGroups).length == 0 and @state != 'DISCONNECTED'
                     @_setState 'EXITED'
-
-    _connected: ->
-        @_setState 'EXITED'
-    _disconnected: ->
-        @_setState 'DISCONNECTED'
