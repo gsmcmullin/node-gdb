@@ -34,6 +34,13 @@ describe 'GDB', ->
     it 'rejects bad cli command with exception', (done) ->
         gdb.connect()
         .then ->
+            gdb.send_cli ' #some comment'
+        .then ->
+            done()
+
+    it 'rejects bad cli command with exception', (done) ->
+        gdb.connect()
+        .then ->
             gdb.send_cli 'badcommand'
         .then ->
             throw new Error "Shouldn't get here"

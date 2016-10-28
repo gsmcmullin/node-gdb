@@ -141,6 +141,9 @@ class GDB
     #
     # Returns a `Promise` that resolves on success.
     send_cli: (cmd) ->
+        cmd = cmd.trim()
+        if cmd.startsWith '#'
+            return Promise.resolve()
         @send_mi "-interpreter-exec console #{cstr(cmd)}"
 
     # Public: Tear down the object and free associated resources.
