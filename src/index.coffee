@@ -1,6 +1,6 @@
 {bufferedProcess, cstr} = require './utils'
 {Emitter} = require 'event-kit'
-{Parser} = require './gdbmi.js'
+{Parser} = require '../lib/gdbmi.js'
 Exec = require './exec'
 Breaks = require './breaks'
 VarObj = require './varobj'

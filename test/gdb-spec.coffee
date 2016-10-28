@@ -1,6 +1,8 @@
-GDB = require '../lib'
+GDB = require '../src'
+sinon = require 'sinon'
+assert = require 'assert'
 
-describe 'GDB', ->
+describe 'GDB core', ->
     gdb = null
     beforeEach ->
         gdb = new GDB()
@@ -8,42 +10,38 @@ describe 'GDB', ->
 
     afterEach -> gdb?.destroy()
 
-    it 'emits connected when connecting', (done) ->
-        spy = jasmine.createSpy('connected')
+    it 'emits connected when connecting', ->
+        spy = sinon.spy()
         gdb.onConnect spy
         gdb.connect().then ->
-            expect(spy).toHaveBeenCalled()
-            done()
+            assert spy.called
 
     it 'emits disconnected when disconnecting', (done) ->
         gdb.onDisconnect done
         gdb.connect()
         .then ->
             gdb.disconnect()
+        return
 
-    it 'accepts cli commands and emits console-output event', (done) ->
-        spy = jasmine.createSpy('output')
+    it 'accepts cli commands and emits console-output event', ->
+        spy = sinon.spy()
         gdb.onConsoleOutput spy
         gdb.connect()
         .then ->
             gdb.send_cli 'show version'
         .then ->
-            expect(spy).toHaveBeenCalled()
-            done()
+            assert spy.called
 
-    it 'rejects bad cli command with exception', (done) ->
+    it 'ignore comment lines on cli', ->
         gdb.connect()
         .then ->
             gdb.send_cli ' #some comment'
-        .then ->
-            done()
 
-    it 'rejects bad cli command with exception', (done) ->
+    it 'rejects bad cli command with exception', ->
         gdb.connect()
         .then ->
             gdb.send_cli 'badcommand'
         .then ->
             throw new Error "Shouldn't get here"
         .catch (err) ->
-            expect(err.constructor).toEqual(Error)
-            done()
+            assert(err.constructor is Error)
