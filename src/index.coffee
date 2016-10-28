@@ -56,15 +56,15 @@ class GDB
     # Retuns a `Promise` that resolves when GDB is running.
     connect: (command) ->
         @command ?= command
-        @child?.kill()
-        # Spawn the GDB child process and connect up event handlers
-        bufferedProcess
+        (@child?.kill() or Promise.resolve())
+        .then =>
+            bufferedProcess
                 command: @command
                 args: ['-n', '--interpreter=mi']
                 stdout: @_line_output_handler.bind(this)
                 exit: @_child_exited.bind(this)
-            .then (@child) =>
-                @emitter.emit 'connected'
+        .then (@child) =>
+            @emitter.emit 'connected'
 
     # Politely request the GDB child process to exit
     disconnect: ->
