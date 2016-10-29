@@ -146,6 +146,21 @@ class GDB
             return Promise.resolve()
         @send_mi "-interpreter-exec console #{cstr(cmd)}"
 
+    set: (name, value) ->
+        @send_mi "-gdb-set #{cstr(name)}=#{value}"
+
+    show: (name) ->
+        @send_mi "-gdb-show #{cstr(name)}"
+            .then ({value}) -> value
+
+    # Public: Set current working directory.
+    setCwd: (path) ->
+        @send_mi "-environment-cd #{cstr(path)}"
+
+    # Public: Set current file for target execution and symbols.
+    setFile: (path) ->
+        @send_mi "-file-exec-and-symbols #{cstr(path)}"
+
     # Public: Tear down the object and free associated resources.
     destroy: ->
         @child?.kill()
