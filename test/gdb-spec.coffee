@@ -24,6 +24,18 @@ describe 'GDB core', ->
                 gdb.disconnect()
             return
 
+        it 'emits disconnected then connected when reconnecting', ->
+            disconnect = sinon.spy()
+            connect = sinon.spy ->
+                assert(disconnect.called)
+            gdb.connect()
+            .then ->
+                gdb.onDisconnect disconnect
+                gdb.onConnect connect
+                gdb.connect()
+            .then ->
+                assert(connect.called)
+
     describe 'When connected', ->
         beforeEach ->
             gdb.connect()
@@ -54,3 +66,10 @@ describe 'GDB core', ->
                 assert(not "Shouldn't get here")
             .catch (err) ->
                 assert(err.constructor is Error)
+
+        it 'allows setting internal variables', ->
+            gdb.set('confirm', 'off')
+            .then ->
+                gdb.show('confirm')
+            .then (foo) ->
+                assert(foo == 'off')

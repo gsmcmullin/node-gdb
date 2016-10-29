@@ -147,10 +147,10 @@ class GDB
         @send_mi "-interpreter-exec console #{cstr(cmd)}"
 
     set: (name, value) ->
-        @send_mi "-gdb-set #{cstr(name)}=#{value}"
+        @send_mi "-gdb-set #{name} #{value}"
 
     show: (name) ->
-        @send_mi "-gdb-show #{cstr(name)}"
+        @send_mi "-gdb-show #{name}"
             .then ({value}) -> value
 
     # Public: Set current working directory.
