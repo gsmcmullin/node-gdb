@@ -1,6 +1,15 @@
 GDB = require '../src'
 sinon = require 'sinon'
 assert = require 'assert'
+child_process = require 'child_process'
+
+testfile = (gdb, srcfile) ->
+    new Promise (resolve, reject) ->
+        binfile = srcfile.slice(0, srcfile.lastIndexOf('.'))
+        child_process.exec "cc -g -O0 -o #{binfile} #{srcfile}", (err) ->
+            if err? then reject(err) else resolve(binfile)
+    .then (binfile) ->
+        gdb.setFile binfile
 
 describe 'GDB core', ->
     gdb = null
@@ -73,3 +82,13 @@ describe 'GDB core', ->
                 gdb.show('confirm')
             .then (foo) ->
                 assert(foo == 'off')
+
+        it 'allow setting target binary', ->
+            testfile(gdb, 'simple.c')
+
+        it 'rejects non-existant binary', ->
+            gdb.setFile('garbage')
+            .then ->
+                assert(false)
+            .catch (err) ->
+                assert(err.constructor is Error)
