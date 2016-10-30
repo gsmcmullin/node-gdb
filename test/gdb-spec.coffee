@@ -129,3 +129,23 @@ describe 'GDB core', ->
                 done()
             gdb.exec.continue()
             return
+
+        it 'can step over function calls', ->
+            gdb.exec.next()
+            .then -> waitStop(gdb)
+            .then (frame) ->
+                assert frame.func == 'main'
+
+        it 'can step into function calls', ->
+            gdb.exec.step()
+            .then -> waitStop(gdb)
+            .then (frame) ->
+                assert frame.func == 'func1'
+
+        it 'can step out of function calls', ->
+            gdb.exec.step()
+            .then -> waitStop(gdb)
+            .then -> gdb.exec.finish()
+            .then -> waitStop(gdb)
+            .then (frame) ->
+                assert frame.func == 'main'
