@@ -106,46 +106,91 @@ describe 'GDB core', ->
             .catch (err) ->
                 assert(err.constructor is Error)
 
-    describe 'GDB Execution State', ->
-        beforeEach ->
-            gdb.connect()
-            .then -> testfile(gdb, 'simple.c')
+describe 'GDB Execution State', ->
+    gdb = null
+    beforeEach ->
+        gdb = new GDB()
+        #gdb.onGdbmiRaw (data) -> console.log data
+        gdb.connect()
+        .then -> testfile(gdb, 'simple.c')
 
-        it 'can start the target program', ->
-            gdb.exec.start()
-            .then ->
-                assert(gdb.exec.state == 'RUNNING')
-                waitStop(gdb)
-            .then (frame) ->
-                assert frame.file == 'simple.c'
-                assert frame.func == 'main'
+    it 'can start the target program', ->
+        gdb.exec.start()
+        .then ->
+            assert(gdb.exec.state == 'RUNNING')
+            waitStop(gdb)
+        .then (frame) ->
+            assert frame.file == 'simple.c'
+            assert frame.func == 'main'
 
-        beforeEach ->
-            gdb.exec.start()
-            .then -> waitStop(gdb)
+    beforeEach ->
+        gdb.exec.start()
+        .then -> waitStop(gdb)
 
-        it 'can resume execution', (done) ->
-            gdb.exec.onExited ->
-                done()
+    it 'can resume execution', (done) ->
+        gdb.exec.onExited ->
+            done()
+        gdb.exec.continue()
+        return
+
+    it 'can step over function calls', ->
+        gdb.exec.next()
+        .then -> waitStop(gdb)
+        .then (frame) ->
+            assert frame.func == 'main'
+
+    it 'can step into function calls', ->
+        gdb.exec.step()
+        .then -> waitStop(gdb)
+        .then (frame) ->
+            assert frame.func == 'func1'
+
+    it 'can step out of function calls', ->
+        gdb.exec.step()
+        .then -> waitStop(gdb)
+        .then -> gdb.exec.finish()
+        .then -> waitStop(gdb)
+        .then (frame) ->
+            assert frame.func == 'main'
+
+describe 'GDB Breakpoint Manager', ->
+    # Breakpoint tests are sequencial and state is preserved between tests
+    # If an early test fails, the following tests will also fail
+    gdb = null
+    bkpt = null
+
+    before ->
+        gdb = new GDB()
+        #gdb.onGdbmiRaw (data) -> console.log data
+
+        gdb.connect()
+        .then -> testfile(gdb, 'simple.c')
+
+    it 'can set a breakpoint', ->
+        bpObserver = sinon.spy()
+        gdb.breaks.observe bpObserver
+        gdb.breaks.insert 'func2'
+        .then (b) ->
+            bkpt = b
+            assert bpObserver.calledWith('1', bkpt)
+
+    it 'can hit a breakpoint', ->
+        bpChanged = sinon.spy()
+        bkpt.onChanged bpChanged
+        gdb.exec.continue()
+        .then ->
+            waitStop(gdb)
+        .then (frame) ->
+            assert frame.func == 'func2'
+            assert bpChanged.called
+            assert bkpt.times == '1'
+
+    it 'can remove a breakpoint', (done) ->
+        bpDeleted = sinon.spy()
+        bkpt.onDeleted bpDeleted
+        bkpt.remove()
+        .then ->
+            assert bpDeleted.called
+            gdb.exec.onExited -> done()
             gdb.exec.continue()
-            return
-
-        it 'can step over function calls', ->
-            gdb.exec.next()
-            .then -> waitStop(gdb)
-            .then (frame) ->
-                assert frame.func == 'main'
-
-        it 'can step into function calls', ->
-            gdb.exec.step()
-            .then -> waitStop(gdb)
-            .then (frame) ->
-                assert frame.func == 'func1'
-
-        it 'can step out of function calls', ->
-            gdb.exec.step()
-            .then -> waitStop(gdb)
-            .then -> gdb.exec.finish()
-            .then -> waitStop(gdb)
-            .then (frame) ->
-                assert frame.func == 'main'
+        return
