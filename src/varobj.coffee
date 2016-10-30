@@ -1,7 +1,8 @@
 {Emitter, Disposable, CompositeDisposable} = require 'event-kit'
 {cstr} = require './utils'
 
-class VarObj
+class VariableManager
+    # @nodoc
     constructor: (@gdb) ->
         @roots = []
         @vars = {}
@@ -12,6 +13,7 @@ class VarObj
         @subscriptions.add @gdb.exec.onStateChanged @_execStateChanged.bind(this)
         @subscriptions.add @gdb.breaks.observe @_breakObserver.bind(this)
 
+    # @private
     destroy: ->
         @subscriptions.dispose()
         @emitter.dispose()
@@ -31,10 +33,10 @@ class VarObj
         return new Disposable () ->
             @observers.splice(@observers.indexOf(cb), 1)
 
-    add: (expr, frame='', thread='') ->
-        if thread != '' then thread = "--thread #{thread}"
-        if frame != '' then frame = "--frame #{frame}"
-        @gdb.send_mi "-var-create #{thread} #{frame} - * #{cstr(expr)}"
+    add: (expr, frame, thread) ->
+        thread ?= @gdb.exec.selectedThread
+        frame ?= @gdb.exec.selectedFrame
+        @gdb.send_mi "-var-create --thread #{thread} --frame #{frame} - * #{cstr(expr)}"
             .then (result) =>
                 result.exp = expr
                 @_added result
@@ -67,6 +69,7 @@ class VarObj
     clearWatch: (name) ->
          @vars[name].watchpoint.remove()
 
+    # @private
     _removeVar: (name) ->
         # Remove from roots or parent's children
         if name in @roots
@@ -89,14 +92,17 @@ class VarObj
                 delete @vars[name]
                 @_notifyObservers name
 
+    # @private
     remove: (name) ->
         @gdb.send_mi "-var-delete #{name}"
             .then =>
                 @_removeVar name
 
+    # @private
     _notifyObservers: (name, v) ->
         cb(name, v) for cb in @observers
 
+    # @private
     _execStateChanged: ([state]) ->
         if state == 'DISCONNECTED'
             for name in @roots.slice()
@@ -105,6 +111,7 @@ class VarObj
         if state != 'STOPPED' then return
         @update()
 
+    # @private
     update: ->
         @gdb.send_mi "-var-update --all-values *"
             .then ({changelist}) =>
@@ -113,11 +120,13 @@ class VarObj
                     @vars[v.name].in_scope = v.in_scope
                     @_notifyObservers v.name, @vars[v.name]
 
+    # @private
     _addChildren: (name) ->
         @gdb.send_mi "-var-list-children --all-values #{name}"
             .then (result) =>
                 Promise.all (@_added(child) for child in result.children.child)
 
+    # @private
     _added: (result) ->
         @vars[result.name] = result
         if (i = result.name.lastIndexOf '.') >= 0
@@ -131,6 +140,7 @@ class VarObj
                     result
         result
 
+    # @private
     _breakObserver: (id, bkpt) ->
         if not bkpt.type.endsWith('watchpoint')
             return
@@ -155,4 +165,4 @@ class VarObj
                 v.times = bkpt.times
                 @_notifyObservers v.name, v
 
-module.exports = VarObj
+module.exports = VariableManager

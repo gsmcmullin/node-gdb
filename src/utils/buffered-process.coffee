@@ -1,5 +1,6 @@
 child_process = require 'child_process'
 
+# @nodoc
 class BufferedProcess
     partialLine: ''
 

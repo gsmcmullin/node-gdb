@@ -8,9 +8,9 @@ VarObj = require './varobj'
 # Public: A class to control an instance of GDB running as a child process.
 # The child is not spawned on construction, but only when calling `.connect`
 class GDB
-    # Public: A {BreakpointManager} instance.
+    # A {BreakpointManager} instance.
     breaks: null
-    # Public: An {ExecState} instance.
+    # An {ExecState} instance.
     exec: null
     # A {VariableManager} instance.  API not finalised.
     vars: null
@@ -28,32 +28,33 @@ class GDB
 
     onConsoleOutput: (cb) ->
         @emitter.on 'console-output', cb
+    # @private
     onGdbmiRaw: (cb) ->
         @emitter.on 'gdbmi-raw', cb
 
-    # Private: Invoke callback on received async exec records.
+    # @private Invoke callback on received async exec records.
     onAsyncExec: (cb) ->
         @emitter.on 'async-exec', cb
 
-    # Private: Invoke callback on received async notify records.
+    # @private Invoke callback on received async notify records.
     onAsyncNotify: (cb) ->
         @emitter.on 'async-notify', cb
 
-    # Private: Invoke callback on received async status records.
+    # @private Invoke callback on received async status records.
     onAsyncStatus: (cb) ->
         @emitter.on 'async-status', cb
 
-    # Public: Invoke the given function when GDB starts.
+    # Invoke the given function when GDB starts.
     onConnect: (cb) ->
         @emitter.on 'connected', cb
 
-    # Public: Invoke the given function when GDB exits.
+    # Invoke the given function when GDB exits.
     onDisconnect: (cb) ->
         @emitter.on 'disconnected', cb
 
-    # Public: Spawn the GDB child process, and set up with our config.
+    # Spawn the GDB child process, and set up with our config.
     #
-    # Retuns a `Promise` that resolves when GDB is running.
+    # @return [Promise] resolves when GDB is running.
     connect: (command) ->
         @command ?= command
         (@child?.kill() or Promise.resolve())
@@ -74,6 +75,7 @@ class GDB
             @exec.interrupt()
         @send_mi '-gdb-exit'
 
+    # @private
     _line_output_handler: (line) ->
         # Handle line buffered output from GDB child process
         @emitter.emit 'gdbmi-raw', line
@@ -87,11 +89,11 @@ class GDB
             when 'OUTPUT' then @emitter.emit 'console-output', [r.cls, r.cstring]
             when 'ASYNC' then @_async_record_handler r.cls, r.rcls, r.results
             when 'RESULT' then @_result_record_handler r.cls, r.results
-
+    # @private
     _async_record_handler: (cls, rcls, results) ->
         signal = 'async-' + cls.toLowerCase()
         @emitter.emit signal, [rcls, results]
-
+    # @private
     _result_record_handler: (cls, results) ->
         c = @cmdq.shift()
         if cls == 'error'
@@ -100,7 +102,7 @@ class GDB
             return
         c.resolve results
         @_drain_queue()
-
+    # @private
     _child_exited: () ->
         # Clean up state if/when GDB child process exits
         @emitter.emit 'disconnected'
@@ -109,7 +111,7 @@ class GDB
 
     # Send a gdb/mi command.  This is used internally by sub-modules.
     #
-    # Returns a `Promise` that resolves to the results part of the result record
+    # @return [Promise] resolves to the results part of the result record
     # reply or rejected in the case of an error reply.
     send_mi: (cmd, quiet) ->
         # Send an MI command to GDB
@@ -123,23 +125,23 @@ class GDB
             @cmdq.push {quiet: quiet, cmd: cmd, resolve:resolve, reject: reject}
             if @cmdq.length == 1
                 @_drain_queue()
-
+    # @private
     _drain_queue: ->
         c = @cmdq[0]
         if not c? then return
         @emitter.emit 'gdbmi-raw', c.cmd
         @child.stdin c.cmd
-
+    # @private
     _flush_queue: ->
         for c in @cmdq
             c.reject new Error('Flushed due to previous errors')
         @cmdq = []
 
-    # Public: Send a gdb/cli command.  This may be used to implement a CLI
+    # Send a gdb/cli command.  This may be used to implement a CLI
     # window in a GUI frontend tool, or to send monitor or other commands for
     # which no equivalent MI commands exist.
     #
-    # Returns a `Promise` that resolves on success.
+    # @return [Promise] resolves on success.
     send_cli: (cmd) ->
         cmd = cmd.trim()
         if cmd.startsWith '#'
@@ -153,15 +155,15 @@ class GDB
         @send_mi "-gdb-show #{name}"
             .then ({value}) -> value
 
-    # Public: Set current working directory.
+    # Set current working directory.
     setCwd: (path) ->
         @send_mi "-environment-cd #{cstr(path)}"
 
-    # Public: Set current file for target execution and symbols.
+    # Set current file for target execution and symbols.
     setFile: (path) ->
         @send_mi "-file-exec-and-symbols #{cstr(path)}"
 
-    # Public: Tear down the object and free associated resources.
+    # Tear down the object and free associated resources.
     destroy: ->
         @child?.kill()
         @breaks.destroy()

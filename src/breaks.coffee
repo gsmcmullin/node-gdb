@@ -2,37 +2,40 @@
 _ = require 'underscore'
 
 # A class representing a single breakpoint.  This should not be created directly
-# but by calling {BreakpointManager::create}.
+# but by calling {BreakpointManager#insert}.
 class Breakpoint
+    # @nodoc
     constructor: (@gdb, bkpt) ->
         @emitter = new Emitter
         _.extend this, bkpt
 
-    # Public: Invoke the given callback function when this breakpoint
+    # Invoke the given callback function when this breakpoint
     # is modified.
     #
-    # Returns a `Disposable` on which `.dispose()` can be called to unsubscribe.
+    # @return [Disposable] to unsubscribe.
     onChanged: (cb) ->
         @emitter.on 'changed', cb
 
-    # Public: Invoke the given callback function when this breakpoint
+    # Invoke the given callback function when this breakpoint
     # is deleted.
     #
-    # Returns a `Disposable` on which `.dispose()` can be called to unsubscribe.
+    # @return [Disposable] to unsubscribe.
     onDeleted: (cb) ->
         @emitter.on 'deleted', cb
 
-    # Public: Remove this breakpoint from the target.
+    # Remove this breakpoint from the target.
     #
-    # Returns a `Promise` that resolves on success.
+    # @return [Promise] resolves on success.
     remove: ->
         @gdb.send_mi "-break-delete #{@number}"
             .then => @_deleted()
 
+    # @nodoc
     _changed: (bkpt) ->
         _.extend this, bkpt
         @emitter.emit 'changed'
 
+    # @nodoc
     _deleted: ->
         @emitter.emit 'deleted'
         @emitter.dispose()
@@ -40,6 +43,7 @@ class Breakpoint
 # Class to manage the creation of new {Breakpoint}s.
 module.exports =
 class BreakpointManager
+    # @nodoc
     constructor: (@gdb) ->
         @breaks = {}
         @observers = []
@@ -47,8 +51,10 @@ class BreakpointManager
         @subscriptions.add @gdb.onAsyncNotify(@_onAsyncNotify.bind(this))
         @subscriptions.add @gdb.exec.onStateChanged @_onStateChanged.bind(this)
 
-    # Public: Invoke the given callback function with all current and future
+    # Invoke the given callback function with all current and future
     # breakpoints in the target.
+    #
+    # @return [Disposable] to unsubscribe.
     observe: (cb) ->
         for id, bkpt of @breaks
             cb id, bkpt
@@ -56,13 +62,16 @@ class BreakpointManager
         return new Disposable () ->
             @observers?.splice(@observers.indexOf(cb), 1)
 
-    # Public: Insert a new breakpoint at the given position.
+    # Insert a new breakpoint at the given position.
+    # @param [String] location Name of function or file:line.
+    # @param [Object] options Breakpoint options
+    # @option options [Boolean] temp Create a temporary breakpoint.
     #
-    # Returns a `Promise` that resolves to the new {Breakpoint}
-    insert: (pos, options) ->
+    # @return [Promise] resolves to the new {Breakpoint}
+    insert: (location, options) ->
         flags = ''
         if options?.temp then flags += ' -t'
-        @gdb.send_mi "-break-insert #{flags} #{pos}"
+        @gdb.send_mi "-break-insert #{flags} #{location}"
             .then ({bkpt}) =>
                 @_add bkpt
 
@@ -89,6 +98,7 @@ class BreakpointManager
             delete @breaks[n]
         delete @observers
 
+    # @nodoc
     _add: (bkpt) ->
         bkpt = @breaks[bkpt.number] = new Breakpoint(@gdb, bkpt)
         bkpt.onDeleted => delete @breaks[bkpt.number]
@@ -96,6 +106,7 @@ class BreakpointManager
             cb bkpt.number, bkpt
         bkpt
 
+    # @nodoc
     _onAsyncNotify: ([cls, {id, bkpt}]) ->
         switch cls
             when 'breakpoint-created'
@@ -106,6 +117,7 @@ class BreakpointManager
                 @breaks[id]._deleted()
                 delete @breaks[id]
 
+    # @nodoc
     _onStateChanged: ([state]) ->
         if state == 'DISCONNECTED'
             for id, bkpt of @breaks

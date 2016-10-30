@@ -1,8 +1,8 @@
 {Emitter, CompositeDisposable} = require 'event-kit'
 
-module.exports =
 # Class for managing target execution state.
 class ExecState
+    # @nodoc
     constructor: (@gdb) ->
         @state = 'DISCONNECTED'
         @threadGroups = {}
@@ -13,6 +13,7 @@ class ExecState
         @subscriptions.add @gdb.onConnect => @_setState 'EXITED'
         @subscriptions.add @gdb.onDisconnect => @_setState 'DISCONNECTED'
 
+    # @private
     destroy: ->
         @subscriptions.dispose()
         @emitter.dispose()
@@ -22,6 +23,7 @@ class ExecState
     onRunning: (cb) -> @emitter.on 'running', cb
     onExited: (cb) -> @emitter.on 'exited', cb
 
+    # @private
     onStateChanged: (cb) ->
         @emitter.on 'state-changed', cb
 
@@ -30,23 +32,23 @@ class ExecState
         .then =>
             @gdb.send_mi '-exec-run'
 
-    # Public: Resume execution.
+    # Resume execution.
     continue: ->
         if @state == 'EXITED'
             @gdb.send_mi '-exec-run'
         else
             @gdb.send_mi '-exec-continue'
 
-    # Public: Single step, stepping over function calls.
+    # Single step, stepping over function calls.
     next: -> @gdb.send_mi '-exec-next'
 
-    # Public: Single step, stepping into function calls.
+    # Single step, stepping into function calls.
     step: -> @gdb.send_mi '-exec-step'
 
-    # Public: Resume execution until frame returns.
+    # Resume execution until frame returns.
     finish: -> @gdb.send_mi '-exec-finish'
 
-    # Public: Attempt to interrupt the running target.
+    # Attempt to interrupt the running target.
     interrupt: ->
         # Interrupt the target if running
         if @state != 'RUNNING'
@@ -80,12 +82,14 @@ class ExecState
             .then ({variables}) =>
                 variables
 
+    # @private
     _setState: (state, result) ->
         if state != @state
             @emitter.emit state.toLowerCase(), result
         @state = state
         @emitter.emit 'state-changed', [state, result?.frame]
 
+    # @private
     _onExec: ([cls, result]) ->
         switch cls
             when 'running'
@@ -98,6 +102,7 @@ class ExecState
                 @_frameChanged result.frame
                 @_setState 'STOPPED', result
 
+    # @private
     _onNotify: ([cls, results]) ->
         switch cls
             when 'thread-group-started'
@@ -113,7 +118,10 @@ class ExecState
                 if Object.keys(@threadGroups).length == 0 and @state != 'DISCONNECTED'
                     @_setState 'EXITED'
 
+    # @private
     _frameChanged: (frame) ->
         @selectedThread = frame['thread-id']
         @selectedFrame = frame.level or 0
         @emitter.emit 'frame-changed', frame
+
+module.exports = ExecState
