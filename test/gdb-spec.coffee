@@ -6,7 +6,8 @@ child_process = require 'child_process'
 
 testfile = (gdb, srcfile) ->
     new Promise (resolve, reject) ->
-        binfile = srcfile.slice(0, srcfile.lastIndexOf('.'))
+        binfile = 'test/bin/' + srcfile.slice(0, srcfile.lastIndexOf('.'))
+        srcfile = 'test/src/' + srcfile
         child_process.exec "cc -g -O0 -o #{binfile} #{srcfile}", (err) ->
             if err? then reject(err) else resolve(binfile)
     .then (binfile) ->
@@ -120,7 +121,7 @@ describe 'GDB Execution State', ->
             assert(gdb.exec.state == 'RUNNING')
             waitStop(gdb)
         .then (frame) ->
-            assert frame.file == 'simple.c'
+            assert frame.file.match /.*simple\.c$/
             assert frame.func == 'main'
 
     beforeEach ->
