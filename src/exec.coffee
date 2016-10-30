@@ -63,37 +63,40 @@ class ExecState
         @gdb.send_mi "-thread-info"
 
     getFrames: (thread) ->
+        thread ?= @selectedThread
         @gdb.send_mi "-stack-list-frames --thread #{thread}"
             .then (result) ->
                 return result.stack.frame
 
-    selectFrame: (thread, level) ->
-        @gdb.send_mi "-thread-select #{thread}"
-        @gdb.send_mi "-stack-select-frame #{level}"
-        @gdb.send_mi "-stack-info-frame"
+    selectFrame: (level, thread) ->
+        @gdb.send_mi "-stack-info-frame --thread #{thread} --frame #{level}"
             .then ({frame}) =>
-                @_setState @state, frame
+                @_frameChanged frame
 
-    getLocals: (thread, level) ->
+    getLocals: (level, thread) ->
+        thread ?= @selectedThread
+        level ?= @selectedFrame
         @gdb.send_mi "-stack-list-variables --thread #{thread} --frame #{level} --skip-unavailable --all-values"
             .then ({variables}) =>
                 variables
 
-    _setState: (state, frame, reason) ->
+    _setState: (state, result) ->
         if state != @state
-            @emitter.emit state.toLowerCase(), {frame, reason}
+            @emitter.emit state.toLowerCase(), result
         @state = state
-        @emitter.emit 'state-changed', [state, frame]
+        @emitter.emit 'state-changed', [state, result?.frame]
 
-    _onExec: ([cls, {reason, frame}]) ->
+    _onExec: ([cls, result]) ->
         switch cls
             when 'running'
+                @emitter.emit 'frame-changed', null
                 @_setState 'RUNNING'
             when 'stopped'
-                if reason? and reason.startsWith 'exited'
+                if result.reason? and result.reason.startsWith 'exited'
                     @_setState 'EXITED'
                     return
-                @_setState 'STOPPED', frame
+                @_frameChanged result.frame
+                @_setState 'STOPPED', result
 
     _onNotify: ([cls, results]) ->
         switch cls
@@ -109,3 +112,8 @@ class ExecState
                 delete @threadGroups[results.id]
                 if Object.keys(@threadGroups).length == 0 and @state != 'DISCONNECTED'
                     @_setState 'EXITED'
+
+    _frameChanged: (frame) ->
+        @selectedThread = frame['thread-id']
+        @selectedFrame = frame.level or 0
+        @emitter.emit 'frame-changed', frame
