@@ -241,3 +241,46 @@ describe 'GDB Breakpoint Manager', ->
             gdb.exec.onExited -> done()
             gdb.exec.continue()
         return
+
+describe 'GDB Variable Manager', ->
+    gdb = null
+    beforeEach ->
+        gdb = new GDB()
+        #gdb.onGdbmiRaw (data) -> console.log data
+        gdb.connect()
+        .then -> testfile(gdb, 'struct.c')
+        .then -> gdb.exec.start()
+        .then -> waitStop(gdb)
+
+    it 'can add a variable object', ->
+        spy = sinon.spy()
+        gdb.vars.observe spy
+        gdb.vars.add('astruct')
+        .then (v) ->
+            assert(spy.args[0][0] == v)
+            assert(+v.numchild == 3)
+            assert(v.exp == 'astruct')
+            assert(v.nest == 0)
+
+    it "can enumerate variable's children", ->
+        spy = sinon.spy()
+        parent = null
+        gdb.vars.observe spy
+        gdb.vars.add('astruct')
+        .then (v) ->
+            parent = v
+            parent.addChildren()
+        .then (children) ->
+            assert parent.children == children
+            assert children.length == 3
+            for i in [0..2]
+                assert spy.args[i+1][0] == children[i]
+
+    it "can remove a variable object", ->
+        spy = sinon.spy()
+        gdb.vars.add('astruct')
+        .then (v) ->
+            v.onDeleted spy
+            v.remove()
+        .then ->
+            assert spy.called

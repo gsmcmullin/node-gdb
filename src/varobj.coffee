@@ -1,5 +1,88 @@
 {Emitter, Disposable, CompositeDisposable} = require 'event-kit'
 {cstr} = require './utils'
+_ = require 'underscore'
+
+# Class representing a target variable
+# Should not be created directly, but by calling {VariableManager#add}.
+class Variable
+    watchpoint: null
+
+    # @nodoc
+    constructor: (@gdb, varobj) ->
+        @emitter = new Emitter
+        _.extend this, varobj
+
+    # Invoke the given callback function when this variable is changed.
+    # @return [Disposable] to unsubscribe.
+    onChanged: (cb) ->
+        @emitter.on 'changed', cb
+
+    # Invoke the given callback function when this variable is deleted.
+    # @return [Disposable] to unsubscribe.
+    onDeleted: (cb) ->
+        @emitter.on 'deleted', cb
+
+    # Assign a new value to this variable
+    # @param val [String] new value
+    # @return [Promise] resolves to new value if accepted
+    assign: (val) ->
+        @gdb.send_mi "-var-assign #{@name} #{cstr(val)}"
+        .then ({value}) =>
+            @gdb.vars.update()
+            value
+
+    # @private
+    _getExpression: ->
+        @gdb.send_mi "-var-info-path-expression #{@name}"
+            .then ({path_expr}) ->
+                path_expr
+
+    # Set a watchpoint on this variable
+    setWatch: ->
+        @getExpression()
+        .then (expr) =>
+            @gdb.breaks.insertWatch expr, (number) =>
+                @gdb.vars.watchpoints[number] = @name
+        .then (bkpt) => _watchSet(bkpt)
+
+    # Clear the watchpoint on this variable
+    clearWatch: ->
+         @watchpoint.remove()
+
+    # Remove this variable
+    remove: ->
+        @gdb.send_mi "-var-delete #{@name}"
+        .then => @_deleted()
+
+    # Add children
+    addChildren: ->
+        @gdb.send_mi "-var-list-children --all-values #{@name}"
+        .then (result) =>
+            Promise.all (@gdb.vars._added(child) for child in result.children.child)
+        .then (@children) =>
+            @children
+
+    # @private
+    _watchSet: (bkpt) ->
+        @watchpoint = bkpt
+        bkpt.onDeleted =>
+            delete @watchpoint
+        bkpt.onChanged =>
+            @_changed()
+        @_changed()
+
+    # @private
+    _changed: (varobj) ->
+        _.extend this, varobj
+        @emitter.emit 'changed'
+
+    # @private
+    _deleted: ->
+        @emitter.emit 'deleted'
+        @emitter.dispose()
+        @watchpoint?.remove()
+        for child in @children?
+            child._deleted()
 
 class VariableManager
     # @nodoc
@@ -22,6 +105,9 @@ class VariableManager
         delete @roots
         delete @vars
 
+    # Invoke the callback function for each existing and future {Variable}
+    # @param [Function] cb Function to call with {Variable} as paramter
+    # @return [Disposable] to unsubscribe.
     observe: (cb) ->
         # Recursively notify observer of existing items
         r = (n) =>
@@ -33,6 +119,11 @@ class VariableManager
         return new Disposable () ->
             @observers.splice(@observers.indexOf(cb), 1)
 
+    # Create a new {Variable} object
+    # @param expr [String] target expression to watch
+    # @param frame [Integer] Stack level (optional)
+    # @param thread [String] Target thread identifier (optional)
+    # @return [Promise] resolves to the new {Variable}
     add: (expr, frame, thread) ->
         thread ?= @gdb.exec.selectedThread
         frame ?= @gdb.exec.selectedFrame
@@ -40,67 +131,18 @@ class VariableManager
             .then (result) =>
                 result.exp = expr
                 @_added result
-            .then (result) =>
-                @roots.push result.name
-                result
 
-    assign: (name, val) ->
-        @gdb.send_mi "-var-assign #{name} #{cstr(val)}"
-            .then ({value}) =>
-                @update()
-                value
-
-    getExpression: (name) ->
-        @gdb.send_mi "-var-info-path-expression #{name}"
-            .then ({path_expr}) ->
-                path_expr
-
-    evalExpression: (expr) ->
-        @gdb.send_mi "-data-evaluate-expression #{expr}"
+    evalExpression: (expr, frame, thread) ->
+        thread ?= @gdb.exec.selectedThread
+        frame ?= @gdb.exec.selectedFrame
+        @gdb.send_mi "-data-evaluate-expression --thread #{thread} --frame #{frame} #{expr}"
             .then ({value}) ->
                 value
 
-    setWatch: (name) ->
-        @getExpression name
-            .then (expr) =>
-                @gdb.breaks.insertWatch expr, (number) =>
-                    @watchpoints[number] = name
-
-    clearWatch: (name) ->
-         @vars[name].watchpoint.remove()
-
     # @private
-    _removeVar: (name) ->
-        # Remove from roots or parent's children
-        if name in @roots
-            pc = @roots
-        else
-            pc = @vars[@vars[name].parent].children
-        pc.splice pc.indexOf(name), 1
-
-        # Recursively remove children
-        children = @vars[name].children or []
-        Promise.all (@_removeVar c for c in children.slice())
-            .then =>
-                # Remove any watchpoint
-                wp = @vars[name].watchpoint
-                if wp
-                    delete @watchpoints[wp]
-                    return @gdb.breaks.remove wp
-            .then =>
-                # Remove this node
-                delete @vars[name]
-                @_notifyObservers name
-
-    # @private
-    remove: (name) ->
-        @gdb.send_mi "-var-delete #{name}"
-            .then =>
-                @_removeVar name
-
-    # @private
-    _notifyObservers: (name, v) ->
-        cb(name, v) for cb in @observers
+    _notifyObservers: (v) ->
+        cb(v) for cb in @observers
+        return v
 
     # @private
     _execStateChanged: ([state]) ->
@@ -116,29 +158,20 @@ class VariableManager
         @gdb.send_mi "-var-update --all-values *"
             .then ({changelist}) =>
                 for v in changelist
-                    @vars[v.name].value = v.value
-                    @vars[v.name].in_scope = v.in_scope
-                    @_notifyObservers v.name, @vars[v.name]
+                    @vars[v.name]._changed(v)
 
     # @private
-    _addChildren: (name) ->
-        @gdb.send_mi "-var-list-children --all-values #{name}"
-            .then (result) =>
-                Promise.all (@_added(child) for child in result.children.child)
-
-    # @private
-    _added: (result) ->
-        @vars[result.name] = result
-        if (i = result.name.lastIndexOf '.') >= 0
-            result.parent = result.name.slice 0, i
-        result.nest = result.name.split('.').length - 1
-        @_notifyObservers result.name, result
-        if +result.numchild > 0
-            return @_addChildren result.name
-                .then (children) =>
-                    result.children = (child.name for child in children)
-                    result
-        result
+    _added: (v) ->
+        if (i = v.name.lastIndexOf '.') >= 0
+            v.parent = @vars[v.name.slice(0, i)]
+        v.nest = v.name.split('.').length - 1
+        v = new Variable(@gdb, v)
+        @vars[v.name] = v
+        v.onDeleted =>
+            delete @vars[v.name]
+            if v.name in @roots
+                @roots.splice(@roots.indexOf(v.name), 1)
+        @_notifyObservers v
 
     # @private
     _breakObserver: (id, bkpt) ->
@@ -146,23 +179,11 @@ class VariableManager
             return
 
         if @watchpoints[id]?
-            # Already set by our hook function
-            p = Promise.resolve @vars[@watchpoints[id]]
-        else
-            # We don't know about this, create a new var obj
-            p = @add bkpt.what
-
-        p.then (v) =>
+            return
+        # We don't know about this, create a new var obj
+        @add(bkpt.what)
+        .then (v) =>
             @watchpoints[bkpt.number] = v.name
-            v.watchpoint = bkpt
-            @_notifyObservers v.name, v
-            bkpt.onDeleted =>
-                delete v.watchpoint
-                delete v.times
-                delete @watchpoints[id]
-                @_notifyObservers v.name, v
-            bkpt.onChanged =>
-                v.times = bkpt.times
-                @_notifyObservers v.name, v
+            v._watchSet(bkpt)
 
 module.exports = VariableManager
