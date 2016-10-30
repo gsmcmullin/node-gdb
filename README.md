@@ -13,7 +13,8 @@ its own package with no atom dependencies.
 This is still very experimental and under construction.  If you try it, please
 stop by the Gitter channel and let us know what you think.
 
-Public API (draft, subject to change):
+## Public API
+[draft, subject to change]
 
 `class GDB`
  - `constructor()` - create a new GDB instance
