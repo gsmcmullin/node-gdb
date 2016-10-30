@@ -61,20 +61,34 @@ class ExecState
                 process.kill group.pid, 'SIGINT'
         Promise.resolve()
 
+    # Read a list of threads from the target
+    # @return [Promise] resolves to an array of thread objects
     getThreads: ->
         @gdb.send_mi "-thread-info"
+        .then ({threads}) -> threads
 
+    # Read a list of stack frames from the target
+    # @param [String] thread Target thread identifier (optional)
+    # @return [Promise] resolves to a list of frame objects
     getFrames: (thread) ->
         thread ?= @selectedThread
         @gdb.send_mi "-stack-list-frames --thread #{thread}"
             .then (result) ->
                 return result.stack.frame
 
+    # Select a stack frame for future operations.  Emits frameChanged signal.
+    # @param [Integer] level Stack frame level
+    # @param [String] thread Target thread identifier (optional)
     selectFrame: (level, thread) ->
+        thread ?= @selectedThread
         @gdb.send_mi "-stack-info-frame --thread #{thread} --frame #{level}"
             .then ({frame}) =>
-                @_frameChanged frame
+                @_frameChanged frame, thread
 
+    # Read local variables for a given frame/thread
+    # @param [Integer] level Stack frame level (optional)
+    # @param [String] thread Target thread identifier (optional)
+    # @return [Promise] resolves to an array of objects with `name` and `value` fields
     getLocals: (level, thread) ->
         thread ?= @selectedThread
         level ?= @selectedFrame
@@ -99,7 +113,7 @@ class ExecState
                 if result.reason? and result.reason.startsWith 'exited'
                     @_setState 'EXITED'
                     return
-                @_frameChanged result.frame
+                @_frameChanged result.frame, result['thread-id']
                 @_setState 'STOPPED', result
 
     # @private
@@ -119,8 +133,8 @@ class ExecState
                     @_setState 'EXITED'
 
     # @private
-    _frameChanged: (frame) ->
-        @selectedThread = frame['thread-id']
+    _frameChanged: (frame, thread) ->
+        @selectedThread = thread
         @selectedFrame = frame.level or 0
         @emitter.emit 'frame-changed', frame
 

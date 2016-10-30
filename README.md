@@ -39,6 +39,10 @@ stop by the Gitter channel and let us know what you think.
  - `step()`
  - `finish()`
  - `interrupt()`
+ - `getThreads()`
+ - `getFrames([thread])`
+ - `getLocals([frame, [thread]])`
+ - `selectFrame(frame, [thread])`
 
 `class BreakpointManager`
  - `observe(cb)` - invoke the callback with each existing and future `Breakpoint`

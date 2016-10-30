@@ -154,6 +154,52 @@ describe 'GDB Execution State', ->
         .then (frame) ->
             assert frame.func == 'main'
 
+    it 'notifies observers of state changes', ->
+        stateSequence = []
+        x = new CompositeDisposable
+        x.add gdb.exec.onExited -> stateSequence.push 'exit'
+        x.add gdb.exec.onRunning -> stateSequence.push 'run'
+        x.add gdb.exec.onStopped -> stateSequence.push 'stop'
+        gdb.exec.next()
+        .then -> waitStop(gdb)
+        .then -> gdb.exec.continue()
+        .then -> waitStop(gdb)
+        .catch ->
+            x.dispose()
+            assert stateSequence.length == 4
+            assert stateSequence[0] == 'run'
+            assert stateSequence[1] == 'stop'
+            assert stateSequence[2] == 'run'
+            assert stateSequence[3] == 'exit'
+
+    it 'can read the list of threads', ->
+        gdb.exec.getThreads()
+
+    it 'can read a stack backtrace', ->
+        gdb.exec.step()
+        .then -> waitStop(gdb)
+        .then -> gdb.exec.step()
+        .then -> waitStop(gdb)
+        .then -> gdb.exec.getFrames()
+        .then (frames) ->
+            assert frames.length == 3
+            assert frames[0].func == 'func2'
+            assert frames[1].func == 'func1'
+            assert frames[2].func == 'main'
+
+    it 'can examine local variables', ->
+        gdb.exec.step()
+        .then -> waitStop(gdb)
+        .then -> gdb.exec.step()
+        .then -> waitStop(gdb)
+        .then -> gdb.exec.getLocals(0)
+        .then (locals) ->
+            assert locals[0].name == 'b1' and locals[0].value == '2'
+            assert locals[1].name == 'b2' and locals[1].value == '1'
+        .then -> gdb.exec.getLocals(1)
+        .then (locals) ->
+            assert locals[0].name == 'a' and locals[0].value == '1'
+
 describe 'GDB Breakpoint Manager', ->
     # Breakpoint tests are sequencial and state is preserved between tests
     # If an early test fails, the following tests will also fail
