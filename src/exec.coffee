@@ -17,12 +17,18 @@ class ExecState
         @subscriptions.dispose()
         @emitter.dispose()
 
+    onFrameChanged: (cb) -> @emitter.on 'frame-changed', cb
+    onStopped: (cb) -> @emitter.on 'stopped', cb
+    onRunning: (cb) -> @emitter.on 'running', cb
+    onExited: (cb) -> @emitter.on 'exited', cb
+
     onStateChanged: (cb) ->
         @emitter.on 'state-changed', cb
 
     start: ->
-        @gdb.send_mi '-break-insert -t main'
-        @gdb.send_mi '-exec-run'
+        @gdb.breaks.insert 'main', temp: true
+        .then =>
+            @gdb.send_mi '-exec-run'
 
     # Public: Resume execution.
     continue: ->
@@ -73,7 +79,9 @@ class ExecState
             .then ({variables}) =>
                 variables
 
-    _setState: (state, frame) ->
+    _setState: (state, frame, reason) ->
+        if state != @state
+            @emitter.emit state.toLowerCase(), {frame, reason}
         @state = state
         @emitter.emit 'state-changed', [state, frame]
 
@@ -82,9 +90,10 @@ class ExecState
             when 'running'
                 @_setState 'RUNNING'
             when 'stopped'
-                @_setState 'STOPPED', frame
                 if reason? and reason.startsWith 'exited'
                     @_setState 'EXITED'
+                    return
+                @_setState 'STOPPED', frame
 
     _onNotify: ([cls, results]) ->
         switch cls

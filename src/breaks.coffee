@@ -59,8 +59,10 @@ class BreakpointManager
     # Public: Insert a new breakpoint at the given position.
     #
     # Returns a `Promise` that resolves to the new {Breakpoint}
-    insert: (pos) ->
-        @gdb.send_mi "-break-insert #{pos}"
+    insert: (pos, options) ->
+        flags = ''
+        if options?.temp then flags += ' -t'
+        @gdb.send_mi "-break-insert #{flags} #{pos}"
             .then ({bkpt}) =>
                 @_add bkpt
 

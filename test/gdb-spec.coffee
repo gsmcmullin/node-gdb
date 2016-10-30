@@ -2,6 +2,7 @@ GDB = require '../src'
 sinon = require 'sinon'
 assert = require 'assert'
 child_process = require 'child_process'
+{CompositeDisposable} = require 'event-kit'
 
 testfile = (gdb, srcfile) ->
     new Promise (resolve, reject) ->
@@ -10,6 +11,18 @@ testfile = (gdb, srcfile) ->
             if err? then reject(err) else resolve(binfile)
     .then (binfile) ->
         gdb.setFile binfile
+
+waitStop = (gdb) ->
+    if gdb.exec.state != 'RUNNING'
+        return Promise.resolve()
+    new Promise (resolve, reject) ->
+        x = new CompositeDisposable
+        x.add gdb.exec.onExited ->
+            x.dispose()
+            reject new Error 'Target exited'
+        x.add gdb.exec.onStopped ({frame}) ->
+            x.dispose()
+            resolve frame
 
 describe 'GDB core', ->
     gdb = null
@@ -92,3 +105,27 @@ describe 'GDB core', ->
                 assert(false)
             .catch (err) ->
                 assert(err.constructor is Error)
+
+    describe 'GDB Execution State', ->
+        beforeEach ->
+            gdb.connect()
+            .then -> testfile(gdb, 'simple.c')
+
+        it 'can start the target program', ->
+            gdb.exec.start()
+            .then ->
+                assert(gdb.exec.state == 'RUNNING')
+                waitStop(gdb)
+            .then (frame) ->
+                assert frame.file == 'simple.c'
+                assert frame.func == 'main'
+
+        beforeEach ->
+            gdb.exec.start()
+            .then -> waitStop(gdb)
+
+        it 'can resume execution', (done) ->
+            gdb.exec.onExited ->
+                done()
+            gdb.exec.continue()
+            return
