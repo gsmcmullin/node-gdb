@@ -275,6 +275,10 @@ describe 'GDB Variable Manager', ->
             assert children.length == 3
             for i in [0..2]
                 assert spy.args[i+1][0] == children[i]
+                assert children[i].parent == parent
+            assert children[0].exp == 'inner1'
+            assert children[1].exp == 'inner2'
+            assert children[2].exp == 'c'
 
     it "can remove a variable object", ->
         spy = sinon.spy()
@@ -284,3 +288,17 @@ describe 'GDB Variable Manager', ->
             v.remove()
         .then ->
             assert spy.called
+
+    it "reports changes in variable objects", (done) ->
+        changed = (v) ->
+            assert v.exp == 'c'
+            assert v.value = '20'
+            done()
+        gdb.vars.add('astruct')
+        .then (v) ->
+            v.addChildren()
+        .then (children) ->
+            children[2].onChanged changed.bind(null, children[2])
+        .then ->
+            gdb.exec.next()
+        return
