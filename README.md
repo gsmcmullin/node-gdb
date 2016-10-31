@@ -52,3 +52,15 @@ stop by the Gitter channel and let us know what you think.
  - `onChanged(cb)`
  - `onDeleted(cb)`
  - `remove()`
+
+`class VariableManager`
+ - `observe(cb)`
+ - `add(expr)`
+ - `evalExpression(expr, [frame, [thread]])`
+
+`class Variable`
+ - `onChanged(cb)`
+ - `onDeleted(cb)`
+ - `addChildren()`
+ - `assign(value)`
+ - `remove()`
