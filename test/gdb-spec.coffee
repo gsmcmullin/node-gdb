@@ -13,17 +13,17 @@ testfile = (gdb, srcfile) ->
     .then (binfile) ->
         gdb.setFile binfile
 
-waitStop = (gdb) ->
-    if gdb.exec.state != 'RUNNING'
-        return Promise.resolve()
+waitStop = (gdb, cmd) ->
     new Promise (resolve, reject) ->
         x = new CompositeDisposable
-        x.add gdb.exec.onExited ->
-            x.dispose()
-            reject new Error 'Target exited'
-        x.add gdb.exec.onStopped ({frame}) ->
-            x.dispose()
-            resolve frame
+        x.add gdb.exec.onRunning ->
+            x.add gdb.exec.onExited ->
+                x.dispose()
+                reject new Error 'Target exited'
+            x.add gdb.exec.onStopped (result) ->
+                x.dispose()
+                resolve result.frame
+        cmd()
 
 describe 'GDB core', ->
     gdb = null
@@ -116,17 +116,13 @@ describe 'GDB Execution State', ->
         .then -> testfile(gdb, 'simple.c')
 
     it 'can start the target program', ->
-        gdb.exec.start()
-        .then ->
-            assert(gdb.exec.state == 'RUNNING')
-            waitStop(gdb)
+        waitStop gdb, -> gdb.exec.start()
         .then (frame) ->
             assert frame.file.match /.*simple\.c$/
             assert frame.func == 'main'
 
     beforeEach ->
-        gdb.exec.start()
-        .then -> waitStop(gdb)
+        waitStop gdb, => gdb.exec.start()
 
     it 'can resume execution', (done) ->
         gdb.exec.onExited ->
@@ -135,22 +131,18 @@ describe 'GDB Execution State', ->
         return
 
     it 'can step over function calls', ->
-        gdb.exec.next()
-        .then -> waitStop(gdb)
+        waitStop gdb, -> gdb.exec.next()
         .then (frame) ->
             assert frame.func == 'main'
 
     it 'can step into function calls', ->
-        gdb.exec.step()
-        .then -> waitStop(gdb)
+        waitStop gdb, -> gdb.exec.step()
         .then (frame) ->
             assert frame.func == 'func1'
 
     it 'can step out of function calls', ->
-        gdb.exec.step()
-        .then -> waitStop(gdb)
-        .then -> gdb.exec.finish()
-        .then -> waitStop(gdb)
+        waitStop gdb, -> gdb.exec.step()
+        .then -> waitStop gdb, -> gdb.exec.finish()
         .then (frame) ->
             assert frame.func == 'main'
 
@@ -160,11 +152,9 @@ describe 'GDB Execution State', ->
         x.add gdb.exec.onExited -> stateSequence.push 'exit'
         x.add gdb.exec.onRunning -> stateSequence.push 'run'
         x.add gdb.exec.onStopped -> stateSequence.push 'stop'
-        gdb.exec.next()
-        .then -> waitStop(gdb)
-        .then -> gdb.exec.continue()
-        .then -> waitStop(gdb)
-        .catch ->
+        waitStop gdb, -> gdb.exec.next()
+        .then -> waitStop(gdb, -> gdb.exec.continue())
+        .catch (err) ->
             x.dispose()
             assert stateSequence.length == 4
             assert stateSequence[0] == 'run'
@@ -176,10 +166,8 @@ describe 'GDB Execution State', ->
         gdb.exec.getThreads()
 
     it 'can read a stack backtrace', ->
-        gdb.exec.step()
-        .then -> waitStop(gdb)
-        .then -> gdb.exec.step()
-        .then -> waitStop(gdb)
+        waitStop gdb, -> gdb.exec.step()
+        .then -> waitStop gdb, -> gdb.exec.step()
         .then -> gdb.exec.getFrames()
         .then (frames) ->
             assert frames.length == 3
@@ -188,10 +176,8 @@ describe 'GDB Execution State', ->
             assert frames[2].func == 'main'
 
     it 'can examine local variables', ->
-        gdb.exec.step()
-        .then -> waitStop(gdb)
-        .then -> gdb.exec.step()
-        .then -> waitStop(gdb)
+        waitStop gdb, -> gdb.exec.step()
+        .then -> waitStop gdb, -> gdb.exec.step()
         .then -> gdb.exec.getLocals(0)
         .then (locals) ->
             assert locals[0].name == 'b1' and locals[0].value == '2'
@@ -224,9 +210,7 @@ describe 'GDB Breakpoint Manager', ->
     it 'can hit a breakpoint', ->
         bpChanged = sinon.spy()
         bkpt.onChanged bpChanged
-        gdb.exec.continue()
-        .then ->
-            waitStop(gdb)
+        waitStop gdb, -> gdb.exec.continue()
         .then (frame) ->
             assert frame.func == 'func2'
             assert bpChanged.called
@@ -249,8 +233,7 @@ describe 'GDB Variable Manager', ->
         #gdb.onGdbmiRaw (data) -> console.log data
         gdb.connect()
         .then -> testfile(gdb, 'struct.c')
-        .then -> gdb.exec.start()
-        .then -> waitStop(gdb)
+        .then -> waitStop gdb, -> gdb.exec.start()
 
     it 'can add a variable object', ->
         spy = sinon.spy()
