@@ -1,6 +1,6 @@
 {
   "name": "node-gdb",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Control GDB from node.js",
   "main": "lib/index.js",
   "scripts": {
