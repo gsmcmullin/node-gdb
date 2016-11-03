@@ -222,7 +222,30 @@ describe 'GDB Breakpoint Manager', ->
         bkpt.remove()
         .then ->
             assert bpDeleted.called
-            gdb.exec.onExited -> done()
+            x = gdb.exec.onExited ->
+                x.dispose()
+                done()
+            gdb.exec.continue()
+        return
+
+    it 'notifies osbervers on cli created breakpoints', ->
+        bpObserver = sinon.spy()
+        gdb.breaks.observe bpObserver
+        gdb.send_cli 'break main'
+        .then ->
+            assert bpObserver.called
+            bkpt = bpObserver.args[0][1]
+            assert bkpt.func == 'main'
+
+    it 'notifies observers of cli deleted breakpoints', (done) ->
+        bpDeleted = sinon.spy()
+        bkpt.onDeleted bpDeleted
+        gdb.send_cli "delete #{bkpt.number}"
+        .then ->
+            assert bpDeleted.called
+            x = gdb.exec.onExited ->
+                x.dispose()
+                done()
             gdb.exec.continue()
         return
 
