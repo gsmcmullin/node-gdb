@@ -308,3 +308,24 @@ describe 'GDB Variable Manager', ->
         .then ->
             gdb.exec.next()
         return
+
+    it "can assign a value to a variable", ->
+        gdb.vars.add('astruct')
+        .then (v) ->
+            v.addChildren()
+        .then (children) ->
+            children[2].assign "42"
+        .then (val) ->
+            assert val == "42"
+
+    it "can set a watchpoint on a variable", ->
+        changed = sinon.spy()
+        gdb.vars.add('astruct.c')
+        .then (v) ->
+            v.onChanged changed
+            v.setWatch()
+        .then ->
+            assert changed.called
+            wpt = changed.args[0][0].watchpoint
+            assert wpt.number?
+            assert wpt.times?
