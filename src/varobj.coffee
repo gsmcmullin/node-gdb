@@ -39,11 +39,11 @@ class Variable
 
     # Set a watchpoint on this variable
     setWatch: ->
-        @getExpression()
+        @_getExpression()
         .then (expr) =>
             @gdb.breaks.insertWatch expr, (number) =>
                 @gdb.vars.watchpoints[number] = @name
-        .then (bkpt) => _watchSet(bkpt)
+        .then (bkpt) => @_watchSet(bkpt)
 
     # Clear the watchpoint on this variable
     clearWatch: ->
@@ -74,7 +74,7 @@ class Variable
     # @private
     _changed: (varobj) ->
         _.extend this, varobj
-        @emitter.emit 'changed'
+        @emitter.emit 'changed', this
 
     # @private
     _deleted: ->
