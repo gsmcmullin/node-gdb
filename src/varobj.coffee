@@ -67,6 +67,7 @@ class Variable
         @watchpoint = bkpt
         bkpt.onDeleted =>
             delete @watchpoint
+            @_changed()
         bkpt.onChanged =>
             @_changed()
         @_changed()

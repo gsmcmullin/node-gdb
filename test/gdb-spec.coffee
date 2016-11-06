@@ -329,3 +329,18 @@ describe 'GDB Variable Manager', ->
             wpt = changed.args[0][0].watchpoint
             assert wpt.number?
             assert wpt.times?
+
+    it "can clear a watchpoint on a variable", ->
+        changed = sinon.spy()
+        v = null
+        gdb.vars.add('astruct.c')
+        .then (view) ->
+            v = view
+            v.setWatch()
+        .then ->
+            assert v.watchpoint?
+            v.onChanged changed
+            v.clearWatch()
+        .then ->
+            assert not v.watchpoint?
+            assert changed.called
