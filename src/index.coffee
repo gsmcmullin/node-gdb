@@ -17,7 +17,7 @@ class GDB
     command: 'gdb'
 
     constructor: (command) ->
-        @command ?= command
+        if command? then @command = command
         @next_token = 0
         @cmdq = []
         @parser = new Parser
@@ -56,7 +56,7 @@ class GDB
     #
     # @return [Promise] resolves when GDB is running.
     connect: (command) ->
-        @command ?= command
+        if command? then @command = command
         (@child?.kill() or Promise.resolve())
         .then =>
             bufferedProcess

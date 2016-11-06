@@ -59,6 +59,13 @@ describe 'GDB core', ->
             .then ->
                 assert(connect.called)
 
+        it "rejects promise if can't spawn child", ->
+            gdb.connect("unlikely-to-exist")
+            .then ->
+                assert(not "Shouldn't get here")
+            .catch (err) ->
+                assert(err.constructor is Error)
+
     describe 'When connected', ->
         beforeEach ->
             gdb.connect()
