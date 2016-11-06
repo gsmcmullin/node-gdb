@@ -344,3 +344,10 @@ describe 'GDB Variable Manager', ->
         .then ->
             assert not v.watchpoint?
             assert changed.called
+
+    it "automatically creates variables on new watchpoints", (done) ->
+        gdb.vars.observe (v) -> v.onChanged (v) ->
+            assert v.watchpoint?
+            done()
+        gdb.send_cli 'watch astruct.c'
+        return
