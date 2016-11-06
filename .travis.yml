@@ -6,3 +6,5 @@ node_js:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y gdb
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

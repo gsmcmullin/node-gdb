@@ -5,4 +5,5 @@ spec
 npm-debug.log
 node_modules
 test/bin
+coverage
 

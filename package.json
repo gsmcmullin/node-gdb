@@ -8,7 +8,8 @@
     "coffee": "coffee --compile --output lib src",
     "prepublish": "npm run coffee && npm run jison",
     "pretest": "npm run jison",
-    "test": "mocha --compilers coffee:coffee-script/register"
+    "test": "mocha --compilers coffee:coffee-script/register --require coffee-coverage/register-istanbul",
+    "posttest": "istanbul report"
   },
   "repository": {
     "type": "git",
@@ -33,7 +34,9 @@
     "underscore": "^1.8.3"
   },
   "devDependencies": {
+    "coffee-coverage": "^1.0.1",
     "coffee-script": "^1.11.1",
+    "istanbul": "^0.4.5",
     "jison": "~0.4.17",
     "mocha": "^3.1.2",
     "sinon": "^1.17.6"
