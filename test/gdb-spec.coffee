@@ -351,3 +351,8 @@ describe 'GDB Variable Manager', ->
             done()
         gdb.send_cli 'watch astruct.c'
         return
+
+    it "can evaluate an arbitrary expression", ->
+        gdb.vars.evalExpression "astruct.c"
+        .then (val) ->
+            assert val == '0'
