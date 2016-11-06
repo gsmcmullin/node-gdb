@@ -1,6 +1,7 @@
 # node-gdb
 [![npm](https://img.shields.io/npm/v/node-gdb.svg)](https://www.npmjs.com/package/node-gdb)
 [![Build Status](https://travis-ci.org/gsmcmullin/node-gdb.svg?branch=master)](https://travis-ci.org/gsmcmullin/node-gdb)
+[![Codecov](https://img.shields.io/codecov/c/github/gsmcmullin/node-gdb.svg)](https://codecov.io/gh/gsmcmullin/node-gdb)
 [![deps](https://david-dm.org/gsmcmullin/node-gdb/status.svg)](https://david-dm.org/gsmcmullin/node-gdb)
 [![devDeps](https://david-dm.org/gsmcmullin/node-gdb/dev-status.svg)](https://david-dm.org/gsmcmullin/node-gdb?type=dev)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/atom-gdb-debugger/Lobby)
