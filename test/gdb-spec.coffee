@@ -363,3 +363,16 @@ describe 'GDB Variable Manager', ->
         gdb.vars.evalExpression "astruct.c"
         .then (val) ->
             assert val == '0'
+
+    it "removes child when parent is removed", ->
+        spy = sinon.spy()
+        parent = null
+        gdb.vars.add('astruct')
+        .then (v) ->
+            parent = v
+            parent.addChildren()
+        .then (children) ->
+            children[0].onDeleted spy
+            parent.remove()
+        .then ->
+            assert spy.called

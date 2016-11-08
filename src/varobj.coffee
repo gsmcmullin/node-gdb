@@ -82,7 +82,7 @@ class Variable
         @emitter.emit 'deleted'
         @emitter.dispose()
         @watchpoint?.remove()
-        for child in @children?
+        for child in @children or []
             child._deleted()
 
 class VariableManager
