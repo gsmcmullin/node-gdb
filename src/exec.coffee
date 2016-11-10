@@ -49,17 +49,7 @@ class ExecState
     finish: -> @gdb.send_mi '-exec-finish'
 
     # Attempt to interrupt the running target.
-    interrupt: ->
-        # Interrupt the target if running
-        if @state != 'RUNNING'
-            return Promise.reject new Error('Target is not running')
-        # There is no hope here for Windows.  See issue #4
-        if @gdb.config.isRemote
-            @gdb.child.process.kill 'SIGINT'
-        else
-            for id, group of @threadGroups
-                process.kill group.pid, 'SIGINT'
-        Promise.resolve()
+    interrupt: -> @gdb.send_mi '-exec-interrupt'
 
     # Read a list of threads from the target
     # @return [Promise] resolves to an array of thread objects

@@ -65,6 +65,8 @@ class GDB
                 stdout: @_line_output_handler.bind(this)
                 exit: @_child_exited.bind(this)
         .then (@child) =>
+            @send_mi '-gdb-set mi-async on'
+        .then =>
             @emitter.emit 'connected'
 
     # Politely request the GDB child process to exit
@@ -117,8 +119,6 @@ class GDB
         # Send an MI command to GDB
         if not @child?
             return Promise.reject new Error('Not connected')
-        if @exec.state == 'RUNNING'
-            return Promise.reject new Error("Can't send commands while target is running")
         new Promise (resolve, reject) =>
             cmd = @next_token + cmd
             @next_token += 1
