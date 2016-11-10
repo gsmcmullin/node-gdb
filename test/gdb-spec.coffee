@@ -193,6 +193,27 @@ describe 'GDB Execution State', ->
         .then (locals) ->
             assert locals[0].name == 'a' and locals[0].value == '1'
 
+    it 'can interrupt a running target', ->
+        gdb.send_cli 'set spin = 1'
+        .then -> waitStop gdb, ->
+            gdb.exec.continue()
+            gdb.exec.interrupt()
+
+describe 'GDB Remote target', ->
+    gdb = null
+    beforeEach ->
+        gdb = new GDB()
+        #gdb.onGdbmiRaw (data) -> console.log data
+        gdb.connect()
+        .then -> testfile(gdb, 'simple.c')
+
+    it 'can interrupt a running target', ->
+        gdb.send_cli 'target remote | gdbserver - test/bin/simple'
+        .then -> gdb.send_cli 'set spin = 1'
+        .then -> waitStop gdb, ->
+            gdb.exec.continue()
+            gdb.exec.interrupt()
+
 describe 'GDB Breakpoint Manager', ->
     # Breakpoint tests are sequencial and state is preserved between tests
     # If an early test fails, the following tests will also fail
