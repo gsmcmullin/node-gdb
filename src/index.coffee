@@ -65,7 +65,7 @@ class GDB
                 stdout: @_line_output_handler.bind(this)
                 exit: @_child_exited.bind(this)
         .then (@child) =>
-            @send_mi '-gdb-set mi-async on'
+            @send_mi '-gdb-set target-async on'
         .then =>
             @emitter.emit 'connected'
 
