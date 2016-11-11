@@ -199,6 +199,12 @@ describe 'GDB Execution State', ->
             gdb.exec.continue()
             gdb.exec.interrupt()
 
+    it 'can interrupt target run from cli', ->
+        gdb.send_cli 'set spin = 1'
+        .then -> waitStop gdb, ->
+            gdb.send_cli 'cont'
+            gdb.exec.interrupt()
+
 describe 'GDB Remote target', ->
     gdb = null
     beforeEach ->
@@ -206,12 +212,18 @@ describe 'GDB Remote target', ->
         #gdb.onGdbmiRaw (data) -> console.log data
         gdb.connect()
         .then -> testfile(gdb, 'simple.c')
+        .then -> gdb.send_cli 'target remote | gdbserver - test/bin/simple'
 
     it 'can interrupt a running target', ->
-        gdb.send_cli 'target remote | gdbserver - test/bin/simple'
-        .then -> gdb.send_cli 'set spin = 1'
-        .then -> waitStop gdb, ->
+        gdb.send_cli 'set spin = 1'
+        .then ->waitStop gdb, ->
             gdb.exec.continue()
+            gdb.exec.interrupt()
+
+    it 'can interrupt target run from cli', ->
+        gdb.send_cli 'set spin = 1'
+        .then -> waitStop gdb, ->
+            gdb.send_cli 'cont'
             gdb.exec.interrupt()
 
 describe 'GDB Breakpoint Manager', ->

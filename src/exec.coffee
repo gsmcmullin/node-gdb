@@ -49,7 +49,11 @@ class ExecState
     finish: -> @gdb.send_mi '-exec-finish'
 
     # Attempt to interrupt the running target.
-    interrupt: -> @gdb.send_mi '-exec-interrupt'
+    interrupt: ->
+        t = setTimeout (=> @gdb.child.kill 'SIGINT'), 100
+        @gdb.send_mi '-exec-interrupt'
+        .then ->
+            clearTimeout t
 
     # Read a list of threads from the target
     # @return [Promise] resolves to an array of thread objects
