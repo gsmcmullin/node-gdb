@@ -99,10 +99,10 @@ class GDB
     _result_record_handler: (cls, results) ->
         c = @cmdq.shift()
         if cls == 'error'
-            c.reject new Error results.msg
+            c?.reject new Error results.msg
             @_flush_queue()
             return
-        c.resolve results
+        c?.resolve results
         @_drain_queue()
     # @private
     _child_exited: () ->
