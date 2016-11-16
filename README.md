@@ -9,8 +9,8 @@
 GDB integration for Node.js
 
 This module provides an interface for controlling GDB from Node.js applications.
-It began as part of the `atom-gdb-debugger` project, but has been split off into
-its own package with no atom dependencies.
+It began as part of the [atom-gdb-debugger](https://atom.io/packages/atom-gdb-debugger)
+project, but has been split off into its own package with no atom dependencies.
 
 This is still very experimental and under construction.  If you try it, please
 stop by the Gitter channel and let us know what you think.
