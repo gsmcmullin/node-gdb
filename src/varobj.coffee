@@ -47,7 +47,7 @@ class Variable
 
     # Clear the watchpoint on this variable
     clearWatch: ->
-         @watchpoint.remove()
+        @watchpoint.remove()
 
     # Remove this variable
     remove: ->

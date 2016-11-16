@@ -87,7 +87,7 @@ class ExecState
         thread ?= @selectedThread
         level ?= @selectedFrame
         @gdb.send_mi "-stack-list-variables --thread #{thread} --frame #{level} --skip-unavailable --all-values"
-            .then ({variables}) =>
+            .then ({variables}) ->
                 variables
 
     # @private
