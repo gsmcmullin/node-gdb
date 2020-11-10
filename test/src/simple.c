@@ -14,7 +14,6 @@ int main(void)
 {
 	func1(1);
 	func1(2);
-
 	while (spin)
 		;
 
