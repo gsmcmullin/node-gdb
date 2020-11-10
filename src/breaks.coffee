@@ -66,11 +66,13 @@ class BreakpointManager
     # @param [String] location Name of function or file:line.
     # @param [Object] options Breakpoint options
     # @option options [Boolean] temp Create a temporary breakpoint.
+    # @option options [Boolean] pending Create a pending breakpoint.
     #
     # @return [Promise] resolves to the new {Breakpoint}
     insert: (location, options) ->
         flags = ''
         if options?.temp then flags += ' -t'
+        if options?.pending then flags += ' -f'
         @gdb.send_mi "-break-insert #{flags} #{location}"
             .then ({bkpt}) =>
                 @_add bkpt

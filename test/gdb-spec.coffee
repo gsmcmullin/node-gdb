@@ -4,11 +4,20 @@ assert = require 'assert'
 child_process = require 'child_process'
 {CompositeDisposable} = require 'event-kit'
 
-testfile = (gdb, srcfile) ->
+makeLib = (srcfile) -> 
+    new Promise (resolve, reject) ->
+        binfile = 'test/bin/' + srcfile.slice(0, srcfile.lastIndexOf('.')) + ".so"
+        srcfile = 'test/src/' + srcfile
+        child_process.exec "cc -g -O0 -shared -o #{binfile} #{srcfile}", (err) ->
+            if err? then reject(err) else resolve(binfile)
+
+testfile = (gdb, srcfile, dynamic = false) ->
     new Promise (resolve, reject) ->
         binfile = 'test/bin/' + srcfile.slice(0, srcfile.lastIndexOf('.'))
         srcfile = 'test/src/' + srcfile
-        child_process.exec "cc -g -O0 -o #{binfile} #{srcfile}", (err) ->
+        flags = ''
+        if(dynamic) then flags += "-ldl" 
+        child_process.exec "cc -g -O0 #{flags} -o #{binfile} #{srcfile}", (err) ->
             if err? then reject(err) else resolve(binfile)
     .then (binfile) ->
         gdb.setFile binfile
@@ -288,6 +297,29 @@ describe 'GDB Breakpoint Manager', ->
                 done()
             gdb.exec.continue()
         return
+
+    it 'can set a pending breakpoint', ->
+        bpObserver = sinon.spy()
+        gdb.breaks.observe bpObserver
+        gdb.breaks.insert 'func3', pending: true
+        .then (b) ->
+            bkpt = b
+            assert bpObserver.calledWith('3', bkpt)
+    
+    it 'can hit a pending breakpoint', ->
+        bpChanged = sinon.spy()
+        bkpt.onChanged bpChanged
+        makeLib "func3.c"
+        .then -> testfile(gdb, 'simple2.c', true)
+        .then -> gdb.setCwd "./test/bin"
+        .then ->  waitStop gdb, -> gdb.exec.continue()
+        .then (frame) ->
+            assert frame.func == 'func3'
+            assert bpChanged.called
+            assert bkpt.times == '1'
+            gdb.exec.continue()
+        return
+
 
 describe 'GDB Variable Manager', ->
     gdb = null
