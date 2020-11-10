@@ -21,7 +21,6 @@ IDENTIFIER                  [a-zA-Z][a-zA-Z0-9_-]*
 "{"                return 'BRACE_OPEN';
 "}"                return 'BRACE_CLOSE';
 "(gdb)"            return 'PROMPT';
-"H"                return 'RUN';
 
 \s                 /* skip whitespace */
 
@@ -159,13 +158,11 @@ stream_record
 
 stream_record_class
     : TILDA
-        {$$ = 'CONSOLEAAA'}
+        {$$ = 'CONSOLE'}
     | AT
         {$$ = 'TARGET'}
     | AMPERSAND
         {$$ = 'LOG'}
-	| RUN
-        {$$ = 'RUN'}
     ;
 
 opt_token
