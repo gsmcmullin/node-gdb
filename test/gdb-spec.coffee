@@ -317,6 +317,9 @@ describe 'GDB Breakpoint Manager', ->
             assert frame.func == 'func3'
             assert bpChanged.called
             assert bkpt.times == '1'
+            gdb.exec.continue()
+        return
+
 
 describe 'GDB Variable Manager', ->
     gdb = null
